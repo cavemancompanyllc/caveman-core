@@ -102,3 +102,18 @@ def test_backup(run, ws, tmp_path):
     assert (snap / "data" / "ledger.db").exists() and (snap / "config" / "school.json").exists()
     assert not (snap / "data" / "playwright-profile").exists()
     assert not list(snap.rglob("*token*"))
+
+
+def test_run_plugin_script_by_name(ws, home, tmp_path, capfd):
+    plug = write_plugin(tmp_path / "cache" / "fam" / "9.9.9", "fam",
+                        **{"scripts__hello.py": "import sys\nprint('hi', *sys.argv[1:])\nsys.exit(3)\n"})
+    (home / ".claude" / "plugins" / "installed_plugins.json").write_text(json.dumps({"plugins": {
+        "fam@m": [{"scope": "project", "projectPath": str(ws), "installPath": str(plug)}]}}))
+    (ws / ".claude").mkdir()
+    (ws / ".claude" / "settings.json").write_text(json.dumps({"enabledPlugins": {"fam@m": True}}))
+    from caveman_core import cli
+    assert cli.main(["--workspace", str(ws), "run", "fam", "hello.py", "a", "--flag"]) == 3
+    assert "hi a --flag" in capfd.readouterr().out
+    assert cli.main(["--workspace", str(ws), "run", "fam", "nope.py"]) == 2
+    assert cli.main(["--workspace", str(ws), "run", "other", "hello.py"]) == 2
+    assert cli.main(["--workspace", str(ws), "run", "fam", "../x.py"]) == 2

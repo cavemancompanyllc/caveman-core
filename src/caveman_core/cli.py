@@ -7,6 +7,7 @@
     cavecore doctor                      check machine + workspace setup
     cavecore backup                      snapshot data/*.db and config/
     cavecore usage                       token usage across transcripts
+    cavecore run <plugin> <script> ...   run a plugin script, whatever version is installed
     cavecore headless --prompt-file F    one unattended Claude run (Task Scheduler)
     cavecore hook session-start          SessionStart context (used by the plugin)
 """
@@ -17,7 +18,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import __version__, backup, doctor, headless, hook, ledger, legacy, paths, usage, work, workspace
+from . import __version__, backup, doctor, headless, hook, ledger, legacy, paths, runner, usage, work, workspace
 
 
 def _ws(a) -> paths.Workspace:
@@ -139,6 +140,14 @@ def cmd_usage(a) -> int:
     return 0
 
 
+def cmd_run(a) -> int:
+    try:
+        return runner.run(_ws(a), a.plugin, a.script, a.args)
+    except runner.RunError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+
+
 def cmd_headless(a) -> int:
     return headless.run(_ws(a), Path(a.prompt_file), a.allowed_tools, Path(a.log_dir) if a.log_dir else None,
                         a.before, a.delete_task)
@@ -209,6 +218,12 @@ def build_parser() -> argparse.ArgumentParser:
     x.add_argument("--workspace-only", action="store_true")
     x.add_argument("--transcript", help="one transcript path, or 'auto' for this workspace's newest")
     x.set_defaults(run=cmd_usage)
+
+    x = sub.add_parser("run", help="Run a plugin's script by name, whatever version is installed")
+    x.add_argument("plugin", help="plugin name, e.g. concierge-family")
+    x.add_argument("script", help="file in the plugin's scripts/ folder, e.g. school_db.py")
+    x.add_argument("args", nargs=argparse.REMAINDER, help="passed to the script")
+    x.set_defaults(run=cmd_run)
 
     x = sub.add_parser("headless", help="Run one unattended Claude session from a prompt file (for Task Scheduler)")
     x.add_argument("--prompt-file", required=True)

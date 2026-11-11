@@ -25,7 +25,7 @@ Python package**.
    import it alongside their other dependencies:
 
    ```bash
-   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.2.0"
+   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.3.0"
    python -m caveman_core --version
    ```
 
@@ -99,6 +99,8 @@ Everything that differs between workspaces goes in the workspace:
 ```
 cavecore which                         which workspace, and which rule found it
 cavecore setting get <plugin>.<key>    a workspace.yaml plugin setting (empty if unset)
+cavecore run <plugin> <script> [args]  run a plugin's script, whatever version is installed
+cavecore headless --prompt-file <f>    one unattended Claude run (for Task Scheduler / cron)
 cavecore work status                   active efforts
 cavecore work project|effort|task|decision ...
 cavecore work session start|end|log|list ...
@@ -126,6 +128,10 @@ the nearest `workspace.yaml`.
   It sits beside the manifest because `claude plugin validate --strict`
   rejects unknown fields in `plugin.json`.
 - In Python: `from caveman_core import paths, env, ledger, llm`.
+- Anything outside Claude Code that calls your script (scheduled prompts,
+  `--allowedTools` rules, wrappers) should use
+  `python -m caveman_core run <plugin> <script> ...`, never a path into the
+  plugin cache: those folders are versioned and old versions get pruned.
 
 ## Developing core
 
