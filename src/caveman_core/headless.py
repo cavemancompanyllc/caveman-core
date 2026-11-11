@@ -13,7 +13,12 @@ a plugin is updated - plugin folders are versioned, ``cavecore`` on PATH isn't.
 - Output goes to ``<log-dir>/<timestamp>_<prompt name>.log``; the default
   log dir mirrors the prompt dir (``data/x_prompts`` -> ``data/x_logs``).
 - ``--before`` runs a preparatory command first (e.g. start an app an MCP
-  server needs); its failure is logged, not fatal.
+  server needs); its failure is logged, not fatal. Without ``--before``, the
+  workspace.yaml ``headless: {before: "..."}`` command is used, if set.
+- A relative ``--prompt-file`` is resolved against the workspace root, which
+  keeps scheduled-task commands under Windows' 261-character limit.
+- If a prompt has no ``.allowedtools`` sidecar, ``default.allowedtools`` in the
+  same folder applies (one list for a folder of generated prompts).
 - ``--delete-task`` removes a one-shot scheduled task after it fires.
 """
 
@@ -32,10 +37,12 @@ from .paths import Workspace
 def allowed_tools(prompt_file: Path, explicit: str | None) -> list[str]:
     if explicit:
         return [t.strip() for t in explicit.split(",") if t.strip()]
-    sidecar = prompt_file.with_name(prompt_file.name + ".allowedtools")
-    if sidecar.is_file():
-        return [ln.strip() for ln in sidecar.read_text(encoding="utf-8").splitlines()
-                if ln.strip() and not ln.lstrip().startswith("#")]
+    # per-prompt sidecar first, then a folder default shared by every prompt in it
+    for sidecar in (prompt_file.with_name(prompt_file.name + ".allowedtools"),
+                    prompt_file.with_name("default.allowedtools")):
+        if sidecar.is_file():
+            return [ln.strip() for ln in sidecar.read_text(encoding="utf-8").splitlines()
+                    if ln.strip() and not ln.lstrip().startswith("#")]
     return []
 
 
@@ -48,8 +55,12 @@ def default_log_dir(ws: Workspace, prompt_file: Path) -> Path:
 
 def run(ws: Workspace, prompt_file: Path, tools: str | None = None, log_dir: Path | None = None,
         before: str | None = None, delete_task: str | None = None, claude: str | None = None) -> int:
+    if not prompt_file.is_absolute():
+        prompt_file = ws.root / prompt_file          # short task commands: paths relative to the workspace
     prompt_file = prompt_file.resolve()
     prompt = prompt_file.read_text(encoding="utf-8-sig")
+    if before is None:
+        before = (ws.config.get("headless") or {}).get("before")
     log_dir = log_dir or default_log_dir(ws, prompt_file)
     log_dir.mkdir(parents=True, exist_ok=True)
     log = log_dir / f"{datetime.now():%Y%m%d_%H%M%S}_{prompt_file.stem}.log"
@@ -71,6 +82,7 @@ def run(ws: Workspace, prompt_file: Path, tools: str | None = None, log_dir: Pat
     with log.open("w", encoding="utf-8") as fh:
         fh.write(f"[headless] {datetime.now().isoformat(timespec='seconds')} prompt={prompt_file} "
                  f"tools={','.join(granted) or '(none)'}\n")
+        fh.flush()                                   # header before the child's output
         proc = subprocess.run(cmd, input=prompt, text=True, encoding="utf-8", cwd=ws.root,
                               stdout=fh, stderr=subprocess.STDOUT, env=env)
         for n in notes:

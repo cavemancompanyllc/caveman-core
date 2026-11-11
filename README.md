@@ -25,7 +25,7 @@ Python package**.
    import it alongside their other dependencies:
 
    ```bash
-   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.4.0"
+   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.5.0"
    python -m caveman_core --version
    ```
 
@@ -99,8 +99,9 @@ Everything that differs between workspaces goes in the workspace:
 ```
 cavecore which                         which workspace, and which rule found it
 cavecore setting get <plugin>.<key>    a workspace.yaml plugin setting (empty if unset)
-cavecore run <plugin> <script> [args]  run a plugin's script, whatever version is installed
-cavecore headless --prompt-file <f>    one unattended Claude run (for Task Scheduler / cron)
+cavecore run [--log F] <plugin> <script> [args]   run a plugin's script, whatever version is installed
+cavecore headless --prompt-file <f>    one unattended Claude run (Task Scheduler / cron); prompt path may be
+                                       workspace-relative; tools from <f>.allowedtools or default.allowedtools
 cavecore guard install                 pre-push hook: deny-list + gitleaks before public pushes
 cavecore work status                   active efforts
 cavecore work project|effort|task|decision ...

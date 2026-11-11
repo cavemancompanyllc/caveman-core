@@ -142,7 +142,7 @@ def cmd_usage(a) -> int:
 
 def cmd_run(a) -> int:
     try:
-        return runner.run(_ws(a), a.plugin, a.script, a.args)
+        return runner.run(_ws(a), a.plugin, a.script, a.args, Path(a.log) if a.log else None)
     except runner.RunError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
@@ -232,6 +232,7 @@ def build_parser() -> argparse.ArgumentParser:
     x.set_defaults(run=cmd_usage)
 
     x = sub.add_parser("run", help="Run a plugin's script by name, whatever version is installed")
+    x.add_argument("--log", help="append output to this file (relative = under the workspace)")
     x.add_argument("plugin", help="plugin name, e.g. concierge-family")
     x.add_argument("script", help="file in the plugin's scripts/ folder, e.g. school_db.py")
     x.add_argument("args", nargs=argparse.REMAINDER, help="passed to the script")

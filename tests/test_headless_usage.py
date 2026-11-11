@@ -48,3 +48,36 @@ def test_usage_report_dedups(tmp_path):
     (proj / "s.jsonl").write_text("\n".join([json.dumps(line)] * 3) + "\nnot json\n")
     out = usage.report(tmp_path / "projects", days=1)
     assert "in            3" in out and "out          2" in out
+
+
+def test_headless_relative_prompt_workspace_before_and_folder_default(ws, tmp_path):
+    fake = tmp_path / "fake2.py"
+    fake.write_text("import sys\nprint('ARGS', sys.argv[1:])\n")
+    launcher = tmp_path / ("fake2.cmd" if sys.platform == "win32" else "fake2.sh")
+    if sys.platform == "win32":
+        launcher.write_text(f'@"{sys.executable}" "{fake}" %*\n')
+    else:
+        launcher.write_text(f'#!/bin/sh\n"{sys.executable}" "{fake}" "$@"\n')
+        launcher.chmod(0o755)
+    (ws / "workspace.yaml").write_text('name: Acme\nheadless:\n  before: "echo prepared"\n')
+    d = ws / "data" / "pre_prompts"
+    d.mkdir(parents=True)
+    (d / "one.txt").write_text("hi", encoding="utf-8")
+    (d / "default.allowedtools").write_text("WebSearch\n", encoding="utf-8")
+    w = paths.resolve(explicit=ws)
+    assert headless.run(w, Path("data/pre_prompts/one.txt"), claude=str(launcher)) == 0
+    log = next((ws / "data" / "pre_logs").glob("*_one.log")).read_text(encoding="utf-8")
+    assert log.startswith("[headless]") and "'WebSearch'" in log and "[before] exit 0: prepared" in log
+
+
+def test_run_with_log(ws, home, tmp_path):
+    from conftest import write_plugin
+    from caveman_core import cli
+    plug = write_plugin(tmp_path / "cache" / "p" / "1.0.0", "p", **{"scripts__s.py": "print('out line')\n"})
+    (home / ".claude" / "plugins" / "installed_plugins.json").write_text(json.dumps({"plugins": {
+        "p@m": [{"scope": "project", "projectPath": str(ws), "installPath": str(plug)}]}}))
+    (ws / ".claude").mkdir()
+    (ws / ".claude" / "settings.json").write_text(json.dumps({"enabledPlugins": {"p@m": True}}))
+    assert cli.main(["--workspace", str(ws), "run", "--log", "data/x.log", "p", "s.py", "--flag"]) == 0
+    text = (ws / "data" / "x.log").read_text(encoding="utf-8")
+    assert "p s.py --flag" in text and "out line" in text and "[exit 0]" in text
