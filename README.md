@@ -25,7 +25,7 @@ Python package**.
    import it alongside their other dependencies:
 
    ```bash
-   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.3.2"
+   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.4.0"
    python -m caveman_core --version
    ```
 
@@ -101,6 +101,7 @@ cavecore which                         which workspace, and which rule found it
 cavecore setting get <plugin>.<key>    a workspace.yaml plugin setting (empty if unset)
 cavecore run <plugin> <script> [args]  run a plugin's script, whatever version is installed
 cavecore headless --prompt-file <f>    one unattended Claude run (for Task Scheduler / cron)
+cavecore guard install                 pre-push hook: deny-list + gitleaks before public pushes
 cavecore work status                   active efforts
 cavecore work project|effort|task|decision ...
 cavecore work session start|end|log|list ...
@@ -132,6 +133,14 @@ the nearest `workspace.yaml`.
   `--allowedTools` rules, wrappers) should use
   `python -m caveman_core run <plugin> <script> ...`, never a path into the
   plugin cache: those folders are versioned and old versions get pruned.
+
+## Keeping personal data out of public repos
+
+In the local clone of any public repo, run `cavecore guard install`. Every push
+then checks the commits being pushed against a deny-list kept **outside every
+repo** (`~/.caveman/denylist.txt`, or `CAVEMAN_DENYLIST`; one term per line,
+`re:` for a regex) and, when it is installed, gitleaks. A match blocks the push
+and names the commit, file and term.
 
 ## Developing core
 

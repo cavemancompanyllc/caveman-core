@@ -18,7 +18,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import __version__, backup, doctor, headless, hook, ledger, legacy, paths, runner, usage, work, workspace
+from . import __version__, backup, doctor, guard, headless, hook, ledger, legacy, paths, runner, usage, work, workspace
 
 
 def _ws(a) -> paths.Workspace:
@@ -153,6 +153,18 @@ def cmd_headless(a) -> int:
                         a.before, a.delete_task)
 
 
+def cmd_guard(a) -> int:
+    repo = Path(a.repo).resolve()
+    if a.guard_cmd == "install":
+        print(f"installed {guard.install(repo)}")
+        return 0
+    if a.guard_cmd == "scan":
+        hits = guard.scan_range(repo, a.range, guard.load_denylist())
+        print("\n".join(hits) or "clean")
+        return 1 if hits else 0
+    return guard.pre_push(repo, sys.stdin.read())
+
+
 def cmd_hook(a) -> int:
     if a.hook_cmd == "session-start":
         try:
@@ -232,6 +244,18 @@ def build_parser() -> argparse.ArgumentParser:
     x.add_argument("--before", help="command to run first, e.g. start an app an MCP server needs")
     x.add_argument("--delete-task", help="scheduled task to delete after the run (one-shot tasks)")
     x.set_defaults(run=cmd_headless)
+
+    g = sub.add_parser("guard", help="Block personal data and secrets from public pushes")
+    g.add_argument("--repo", default=".")
+    gs = g.add_subparsers(dest="guard_cmd", required=True)
+    gs.add_parser("install", help="install the pre-push hook in --repo").set_defaults(run=cmd_guard)
+    x = gs.add_parser("scan", help="scan a revision range, e.g. origin/main..HEAD")
+    x.add_argument("range")
+    x.set_defaults(run=cmd_guard)
+    x = gs.add_parser("pre-push", help="git pre-push hook entry point (reads refs on stdin)")
+    x.add_argument("remote", nargs="?")
+    x.add_argument("url", nargs="?")
+    x.set_defaults(run=cmd_guard)
 
     x = sub.add_parser("hook", help="Hook entry points").add_subparsers(dest="hook_cmd", required=True)
     x.add_parser("session-start").set_defaults(run=cmd_hook)
