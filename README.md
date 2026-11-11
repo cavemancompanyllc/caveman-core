@@ -25,7 +25,7 @@ Python package**.
    import it alongside their other dependencies:
 
    ```bash
-   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.3.1"
+   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.3.2"
    python -m caveman_core --version
    ```
 

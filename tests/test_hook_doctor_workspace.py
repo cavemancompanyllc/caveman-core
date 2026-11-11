@@ -79,7 +79,7 @@ def test_workspace_init_dry_run_then_apply(tmp_path, run):
     w = paths.resolve(explicit=root)
     assert (w.slug, w.kind) == ("new-ws", "kids")
     gi = (root / ".gitignore").read_text()
-    assert gi.count("data/") == 1 and "local/" in gi and "node_modules/" in gi
+    assert "/data/" not in gi and "/local/" in gi and "node_modules/" in gi   # existing data/ rule kept
     st = json.loads((root / ".claude" / "settings.json").read_text())
     assert st["enabledPlugins"] == {"x@y": True, "caveman-core@caveman-core": True}
     assert st["extraKnownMarketplaces"]["caveman-core"]["source"]["repo"] == "cavemancompanyllc/caveman-core"
@@ -127,3 +127,12 @@ def test_workspace_init_respects_existing_data_rules(tmp_path):
     gi = next(c for a, p, c in steps if p.name == ".gitignore")
     assert "data/" not in gi.splitlines() and "config/*.json" not in gi
     assert "local/" in gi and ".env" in gi
+
+
+def test_workspace_init_rules_are_root_anchored(tmp_path):
+    root = tmp_path / "mono"
+    (root / "apps" / "x" / "data").mkdir(parents=True)
+    steps = workspace.plan(root, "Mono", "dev")
+    gi = next(c for a, p, c in steps if p.name == ".gitignore").splitlines()
+    assert "/data/" in gi and "/local/" in gi and "/config/*.json" in gi and ".env" in gi
+    assert "data/" not in gi

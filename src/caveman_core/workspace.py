@@ -18,15 +18,17 @@ from . import paths
 CORE_MARKETPLACE = {"source": {"source": "github", "repo": "cavemancompanyllc/caveman-core"}}
 CORE_PLUGIN = "caveman-core@caveman-core"
 
+# Root-anchored (leading /) so a workspace that is also a code repo with
+# nested data/ or config/ folders (a monorepo's apps) is not affected.
 GITIGNORE_LINES = [
     "# caveman-core workspace (ADR-0004): data, local notes and secrets stay out of git",
-    "data/",
-    "data-backups/",
-    "local/",
+    "/data/",
+    "/data-backups/",
+    "/local/",
     ".env",
     ".claude/settings.local.json",
-    "config/*.json",
-    "!config/*.example.json",
+    "/config/*.json",
+    "!/config/*.example.json",
 ]
 
 CLAUDE_MD = """# {name}
@@ -105,9 +107,13 @@ def plan(root: Path, name: str, kind: str, slug: str | None = None, tasks: str =
         # (e.g. tracks prompt templates under data/) keeps its own rules
         return any(e.lstrip("/!").startswith(folder + "/") for e in have if not e.startswith("#"))
 
-    missing = [ln for ln in GITIGNORE_LINES[1:] if ln.strip() not in have
-               and not (ln.lstrip("!").startswith(("data/", "data-backups/")) and has_own_rules("data"))
-               and not (ln.lstrip("!").startswith("config/") and has_own_rules("config"))]
+    def bare(rule: str) -> str:
+        return rule.lstrip("!").lstrip("/")
+
+    have_bare = {bare(e) for e in have}
+    missing = [ln for ln in GITIGNORE_LINES[1:] if bare(ln) not in have_bare
+               and not (bare(ln).startswith(("data/", "data-backups/")) and has_own_rules("data"))
+               and not (bare(ln).startswith("config/") and has_own_rules("config"))]
     if missing:
         steps.append(("append" if gi.exists() else "create", gi, "\n".join([GITIGNORE_LINES[0], *missing]) + "\n"))
 
