@@ -120,6 +120,19 @@ def resolve(explicit: str | os.PathLike | None = None, cwd: Path | None = None) 
     )
 
 
+def workspace_root(explicit: str | os.PathLike | None = None) -> Path:
+    """The workspace root for a plugin script, never raising.
+
+    Same order as :func:`resolve`, but falls back to the current directory when
+    no workspace is found - the behaviour plugin scripts had before workspaces
+    carried a ``workspace.yaml``, since Claude Code runs Bash in the project root.
+    """
+    try:
+        return resolve(explicit).root
+    except WorkspaceNotFound:
+        return Path.cwd().resolve()
+
+
 def transcript_dir(root: Path, home: Path | None = None) -> Path:
     """Claude Code's transcript folder for a project root.
 

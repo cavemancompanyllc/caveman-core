@@ -69,3 +69,26 @@ def test_env_load_does_not_override(ws, monkeypatch):
     import os
     assert os.environ["CC_TEST_A"] == "process"
     assert os.environ["CC_TEST_B"] == "file"
+
+
+def test_workspace_root_falls_back_to_cwd(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert paths.workspace_root() == tmp_path.resolve()
+
+
+def test_llm_chat_body(monkeypatch):
+    from caveman_core import llm
+    sent = {}
+
+    def fake_post(url, body, timeout):
+        sent.update(url=url, body=body)
+        return {"message": {"content": '{"category": "Food"}'}}
+
+    monkeypatch.setattr(llm, "_post", fake_post)
+    monkeypatch.setenv("OLLAMA_HOST", "box:11434")
+    out = llm.chat_json([{"role": "user", "content": "x"}], "gpt-oss:20b", think="auto")
+    assert out == {"category": "Food"}
+    assert sent["url"] == "http://box:11434/api/chat"
+    assert sent["body"]["think"] == "low" and sent["body"]["format"] == "json" and sent["body"]["stream"] is False
+    llm.chat([{"role": "user", "content": "x"}], "qwen3:8b", think="auto")
+    assert sent["body"]["think"] is False and "format" not in sent["body"]

@@ -41,13 +41,23 @@ def _post(url: str, body: dict, timeout: float) -> dict:
         raise LLMError(f"{url}: {e} - is Ollama running?") from e
 
 
+def default_think(model: str) -> bool | str:
+    """Thinking setting that keeps short classification calls fast.
+
+    gpt-oss ignores ``think=False`` and needs an effort level instead, so it gets
+    ``"low"``; other thinking models get ``False``.
+    """
+    return "low" if model.startswith("gpt-oss") else False
+
+
 def chat(messages: list[dict], model: str | None = None, *, host_url: str | None = None,
          json_format: bool | dict = False, options: dict | None = None, timeout: float = 120.0,
-         think: bool | None = None) -> str:
+         think: bool | str | None = None) -> str:
     """Send a chat request and return the assistant's text.
 
     ``json_format=True`` asks Ollama for a JSON object; a dict is passed through
-    as a JSON schema (structured outputs).
+    as a JSON schema (structured outputs). ``think`` is sent only when given;
+    pass ``think="auto"`` to use :func:`default_think`.
     """
     model = model or os.environ.get("CAVEMAN_LLM_MODEL")
     if not model:
@@ -57,6 +67,8 @@ def chat(messages: list[dict], model: str | None = None, *, host_url: str | None
         body["format"] = json_format if isinstance(json_format, dict) else "json"
     if options:
         body["options"] = options
+    if think == "auto":
+        think = default_think(model)
     if think is not None:
         body["think"] = think
     data = _post(f"{host(host_url)}/api/chat", body, timeout)
