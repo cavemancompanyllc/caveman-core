@@ -72,6 +72,18 @@ class Workspace:
     def has_config_file(self) -> bool:
         return (self.root / WORKSPACE_FILE).exists()
 
+    def setting(self, plugin: str, key: str, default=None):
+        """A plugin's non-secret, workspace-specific setting from workspace.yaml:
+
+            plugins:
+              concierge-memory-obsidian:
+                vault_path: D:/vaults/home
+
+        Secrets never go here (workspace.yaml is committed); they go in .env.
+        """
+        section = (self.config.get("plugins") or {}).get(plugin) or {}
+        return section.get(key, default)
+
 
 def load_config(root: Path) -> dict:
     f = root / WORKSPACE_FILE

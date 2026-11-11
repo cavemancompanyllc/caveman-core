@@ -92,3 +92,35 @@ def test_llm_chat_body(monkeypatch):
     assert sent["body"]["think"] == "low" and sent["body"]["format"] == "json" and sent["body"]["stream"] is False
     llm.chat([{"role": "user", "content": "x"}], "qwen3:8b", think="auto")
     assert sent["body"]["think"] is False and "format" not in sent["body"]
+
+
+def test_env_fills_empty_but_keeps_nonempty(ws, monkeypatch):
+    import os
+    (ws / ".env").write_text("CC_T_EMPTY=from-file\nCC_T_SET=from-file\n")
+    monkeypatch.setenv("CC_T_EMPTY", "")
+    monkeypatch.setenv("CC_T_SET", "from-process")
+    env.load(ws)
+    assert os.environ["CC_T_EMPTY"] == "from-file"
+    assert os.environ["CC_T_SET"] == "from-process"
+
+
+def test_ollama_host_normalisation(monkeypatch):
+    from caveman_core import llm
+    assert llm.host() == "http://localhost:11434"
+    monkeypatch.setenv("OLLAMA_HOST", "0.0.0.0")
+    assert llm.host() == "http://127.0.0.1:11434"
+    monkeypatch.setenv("OLLAMA_HOST", "0.0.0.0:11500")
+    assert llm.host() == "http://127.0.0.1:11500"
+    assert llm.host("https://gpu-box:8443/") == "https://gpu-box:8443"
+
+
+def test_workspace_plugin_settings(run, ws):
+    (ws / "workspace.yaml").write_text(
+        "name: Acme\nplugins:\n  concierge-git:\n    secondary_repo_path: D:/notes\n    secondary_repo_label: notes\n")
+    code, out, _ = run("setting", "get", "concierge-git.secondary_repo_path")
+    assert code == 0 and out.strip() == "D:/notes"
+    code, out, _ = run("setting", "get", "concierge-git.missing")
+    assert code == 0 and out.strip() == ""
+    code, out, _ = run("setting", "list")
+    assert "concierge-git.secondary_repo_label = notes" in out
+    assert run("setting", "get", "nodot")[0] == 2

@@ -27,6 +27,12 @@ def host(explicit: str | None = None) -> str:
     h = explicit or os.environ.get("OLLAMA_HOST") or DEFAULT_HOST
     if not h.startswith(("http://", "https://")):
         h = "http://" + h
+    # OLLAMA_HOST is also the *server's* bind address; 0.0.0.0 / [::] mean
+    # "listen everywhere", which a client must reach via loopback instead.
+    for bind_all in ("//0.0.0.0", "//[::]"):
+        h = h.replace(bind_all, "//127.0.0.1")
+    if h.count(":") == 1:          # scheme only, no port given
+        h += ":11434"
     return h.rstrip("/")
 
 

@@ -35,6 +35,25 @@ def cmd_which(a) -> int:
     return 0
 
 
+def cmd_setting(a) -> int:
+    """Non-secret per-workspace plugin settings from workspace.yaml `plugins:`."""
+    ws = _ws(a)
+    if a.setting_cmd == "get":
+        plugin, _, key = a.name.partition(".")
+        if not key:
+            print("error: name must be <plugin>.<key>, e.g. concierge-git.secondary_repo_path", file=sys.stderr)
+            return 2
+        value = ws.setting(plugin, key)
+        print("" if value is None else value)
+        return 0
+    for plugin, section in sorted((ws.config.get("plugins") or {}).items()):
+        if a.plugin and plugin != a.plugin:
+            continue
+        for key, value in (section or {}).items():
+            print(f"{plugin}.{key} = {value}")
+    return 0
+
+
 def cmd_ledger(a) -> int:
     ws = _ws(a)
     if a.ledger_cmd == "init":
@@ -141,6 +160,15 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("which", help="Show the resolved workspace").set_defaults(run=cmd_which)
+
+    st = sub.add_parser("setting", help="Per-workspace plugin settings (workspace.yaml `plugins:`)")
+    st_sub = st.add_subparsers(dest="setting_cmd", required=True)
+    x = st_sub.add_parser("get", help="Print one setting; empty if unset")
+    x.add_argument("name", help="<plugin>.<key>")
+    x.set_defaults(run=cmd_setting)
+    x = st_sub.add_parser("list", help="List settings")
+    x.add_argument("plugin", nargs="?")
+    x.set_defaults(run=cmd_setting)
 
     work.add_parser(sub)
 

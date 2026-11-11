@@ -39,15 +39,18 @@ def parse(text: str) -> dict[str, str]:
 def load(workspace_root: Path, override: bool = False) -> dict[str, str]:
     """Load ``<workspace>/.env`` into ``os.environ``.
 
-    Variables already set in the environment win unless ``override`` is true,
-    so a value passed by Claude Code (e.g. from plugin userConfig) is never
-    clobbered by the file. Returns what the file contained.
+    Variables already set to a non-empty value win unless ``override`` is
+    true, so a value passed by Claude Code (e.g. from plugin userConfig) is
+    never clobbered by the file. Variables that exist but are *empty* are
+    filled from the file: an optional userConfig field left blank reaches the
+    process as an empty string, and the workspace's own .env should win then.
+    Returns what the file contained.
     """
     f = Path(workspace_root) / ".env"
     if not f.is_file():
         return {}
     values = parse(f.read_text(encoding="utf-8-sig"))
     for k, v in values.items():
-        if override or k not in os.environ:
+        if override or not os.environ.get(k):
             os.environ[k] = v
     return values

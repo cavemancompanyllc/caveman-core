@@ -25,7 +25,7 @@ Python package**.
    import it alongside their other dependencies:
 
    ```bash
-   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.1.0"
+   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.2.0"
    python -m caveman_core --version
    ```
 
@@ -75,17 +75,30 @@ kind: personal        # personal | business | kids | dev | sandbox
 tasks: ledger         # ledger | ado | none - where tasks are tracked
 retro:
   path: docs/lessons-learned.md   # optional: handoff appends retros here
+plugins:                          # optional: non-secret, workspace-specific plugin settings
+  concierge-memory-obsidian:
+    vault_path: D:/vaults/home
 ```
 
-**Configuration rule:** anything that differs between workspaces (vault paths,
-ports, account IDs) goes in that workspace's `.env` or `config/`. Plugin
-`userConfig` is only for values that are the same in every workspace on the
-machine.
+**Where settings live.** Claude Code stores plugin `userConfig` values per
+*user*, so they apply in every workspace on the machine. Use them only for
+values that really are machine-wide (a binary path, the Ollama host).
+Everything that differs between workspaces goes in the workspace:
+
+| Kind of value | Where | Read with |
+|---|---|---|
+| Secrets (API keys, client secrets, tokens) | `.env` (gitignored) | `caveman_core.env.load()`; MCP servers get them from the environment |
+| Non-secret plugin settings (vault path, IDs, labels) | `workspace.yaml` → `plugins:` | `cavecore setting get <plugin>.<key>` or `Workspace.setting()` |
+| Larger per-workspace data (routing tables, rules) | `config/*.json` (real files gitignored, `*.example.json` committed) | the plugin's own code |
+
+`env.load()` also fills variables that exist but are empty, so an optional
+`userConfig` field left blank falls through to the workspace's `.env`.
 
 ## The `cavecore` CLI
 
 ```
 cavecore which                         which workspace, and which rule found it
+cavecore setting get <plugin>.<key>    a workspace.yaml plugin setting (empty if unset)
 cavecore work status                   active efforts
 cavecore work project|effort|task|decision ...
 cavecore work session start|end|log|list ...
