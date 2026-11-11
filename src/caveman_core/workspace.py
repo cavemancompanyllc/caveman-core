@@ -98,7 +98,16 @@ def plan(root: Path, name: str, kind: str, slug: str | None = None, tasks: str =
 
     gi = root / ".gitignore"
     existing = gi.read_text(encoding="utf-8").splitlines() if gi.exists() else []
-    missing = [ln for ln in GITIGNORE_LINES[1:] if ln.strip() not in {e.strip() for e in existing}]
+    have = {e.strip() for e in existing}
+
+    def has_own_rules(folder: str) -> bool:
+        # an existing workspace that already manages data/ or config/ selectively
+        # (e.g. tracks prompt templates under data/) keeps its own rules
+        return any(e.lstrip("/!").startswith(folder + "/") for e in have if not e.startswith("#"))
+
+    missing = [ln for ln in GITIGNORE_LINES[1:] if ln.strip() not in have
+               and not (ln.lstrip("!").startswith(("data/", "data-backups/")) and has_own_rules("data"))
+               and not (ln.lstrip("!").startswith("config/") and has_own_rules("config"))]
     if missing:
         steps.append(("append" if gi.exists() else "create", gi, "\n".join([GITIGNORE_LINES[0], *missing]) + "\n"))
 

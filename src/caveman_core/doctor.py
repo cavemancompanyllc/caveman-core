@@ -67,10 +67,12 @@ def run(explicit_ws: str | None = None, plugin_root: str | None = None, home: Pa
     if ws.task_mode not in paths.TASK_MODES:
         out.append(Check("FAIL", f"workspace.yaml tasks '{ws.task_mode}' is not one of {', '.join(paths.TASK_MODES)}"))
 
-    for rel in ("data/", "local/", ".env"):
+    # representative files, not folders: a workspace may track some files under
+    # data/ (prompt templates) while ignoring databases and tokens
+    for rel in ("data/ledger.db", "data/example.db", "local/handoff.md", ".env"):
         ign = _git_ignored(ws.root, rel)
         if ign is False:
-            out.append(Check("FAIL", f"{rel} is not gitignored - add it to .gitignore"))
+            out.append(Check("FAIL", f"{rel} would be committed - make sure .gitignore covers it"))
     if (ws.root / ".claude" / "settings.json").exists() and _git_tracked(ws.root, ".claude/settings.json") is False:
         out.append(Check("WARN", ".claude/settings.json is not committed - commit it so the plugin list travels "
                                  "with the workspace (and remove it from .gitignore if listed)"))

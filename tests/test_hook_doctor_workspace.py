@@ -117,3 +117,13 @@ def test_run_plugin_script_by_name(ws, home, tmp_path, capfd):
     assert cli.main(["--workspace", str(ws), "run", "fam", "nope.py"]) == 2
     assert cli.main(["--workspace", str(ws), "run", "other", "hello.py"]) == 2
     assert cli.main(["--workspace", str(ws), "run", "fam", "../x.py"]) == 2
+
+
+def test_workspace_init_respects_existing_data_rules(tmp_path):
+    root = tmp_path / "existing"
+    root.mkdir()
+    (root / ".gitignore").write_text("data/*.db\n!data/prompts/\nconfig/secret.json\n")
+    steps = workspace.plan(root, "Existing", "personal")
+    gi = next(c for a, p, c in steps if p.name == ".gitignore")
+    assert "data/" not in gi.splitlines() and "config/*.json" not in gi
+    assert "local/" in gi and ".env" in gi
