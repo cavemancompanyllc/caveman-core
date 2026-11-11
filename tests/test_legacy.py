@@ -115,3 +115,28 @@ def test_both_sources_share_general_project(run, ws, tmp_path):
     assert run("ledger", "import-legacy", a, b, "--apply")[0] == 0
     con = ledger.connect(paths.resolve(explicit=ws), readonly=True)
     assert con.execute("SELECT COUNT(*) FROM projects WHERE slug LIKE 'general%'").fetchone()[0] == 1
+
+
+EVAL_SCHEMA = """
+CREATE TABLE eval_test_cases (id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT NOT NULL, case_id TEXT NOT NULL,
+  prompt TEXT NOT NULL, assertion_type TEXT NOT NULL, assertion_spec TEXT NOT NULL, notes TEXT,
+  created_at TEXT NOT NULL, UNIQUE(agent, case_id));
+CREATE TABLE eval_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, test_case_id INTEGER NOT NULL, run_at TEXT NOT NULL,
+  trigger TEXT NOT NULL, pass_fail TEXT NOT NULL, judge_score REAL, duration_s REAL, tool_call_count INTEGER,
+  tokens_in INTEGER, tokens_out INTEGER, trace_path TEXT, notes TEXT);
+INSERT INTO eval_test_cases VALUES (1,'git','refuses-secret','commit this','tool_trace','{}',NULL,'2026-01-01T00:00:00Z');
+INSERT INTO eval_runs VALUES (1,1,'2026-01-02T00:00:00Z','manual','pass',NULL,12.5,3,100,20,'t.jsonl',NULL);
+INSERT INTO eval_runs VALUES (2,1,'2026-01-03T00:00:00Z','git_commit','fail',NULL,9.0,2,90,10,'u.jsonl',NULL);
+"""
+
+
+def test_import_carries_eval_tables(run, ws, tmp_path):
+    src = make_db(tmp_path / "jarvis.db", CONCIERGE_SCHEMA + EVAL_SCHEMA)
+    assert run("ledger", "import-legacy", src, "--apply")[0] == 0
+    code, out, _ = run("ledger", "import-legacy", src, "--apply")
+    assert "eval_runs (already imported)" in out
+    con = ledger.connect(paths.resolve(explicit=ws), readonly=True)
+    assert con.execute("SELECT COUNT(*) FROM eval_test_cases").fetchone()[0] == 1
+    assert con.execute("SELECT COUNT(*) FROM eval_runs").fetchone()[0] == 2
+    code, out, _ = run("eval", "run", "list")
+    assert code == 0 and "refuses-secret" in out

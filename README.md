@@ -25,7 +25,7 @@ Python package**.
    import it alongside their other dependencies:
 
    ```bash
-   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.5.0"
+   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.6.0"
    python -m caveman_core --version
    ```
 
@@ -111,6 +111,7 @@ cavecore workspace init                scaffold a workspace (dry run unless --ap
 cavecore doctor                        check machine + workspace setup
 cavecore backup --dest <dir>           snapshot data/*.db and config/
 cavecore usage [--days N]              token usage from Claude transcripts
+cavecore eval case|run|which-agents    subagent eval harness: cases, headless runs, grading, drift trends
 ```
 
 Workspace resolution order: `--workspace`, `CAVEMAN_HOME`, `CONCIERGE_HOME`

@@ -111,6 +111,41 @@ def import_concierge(src: sqlite3.Connection, imp: Importer) -> None:
         imp.insert("decisions", {
             "project_id": pmap[d["project_id"]], "effort_id": emap.get(d["effort_id"]), "decision": d["decision"],
             "rationale": d["rationale"], "legacy_ref": imp.ref("decisions", d["id"]), "decided_at": d["decided_at"]})
+    import_evals(src, imp)
+
+
+def import_evals(src: sqlite3.Connection, imp: Importer) -> None:
+    """Eval harness tables (concierge workspaces kept them in the same file)."""
+    if not src.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='eval_test_cases'").fetchone():
+        return
+    from .evals import SCHEMA
+    # one statement at a time: executescript() would commit the import's open transaction
+    for stmt in SCHEMA.split(";"):
+        if stmt.strip():
+            imp.dst.execute(stmt)
+    cmap = {}
+    for c in src.execute("SELECT * FROM eval_test_cases ORDER BY id"):
+        row = imp.dst.execute("SELECT id FROM eval_test_cases WHERE agent = ? AND case_id = ?",
+                              (c["agent"], c["case_id"])).fetchone()
+        if row:
+            cmap[c["id"]] = row[0]
+            imp.counts["eval_test_cases (already imported)"] += 1
+            continue
+        cmap[c["id"]] = imp.dst.execute(
+            "INSERT INTO eval_test_cases (agent, case_id, prompt, assertion_type, assertion_spec, notes, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)", (c["agent"], c["case_id"], c["prompt"], c["assertion_type"],
+                                             c["assertion_spec"], c["notes"], c["created_at"])).lastrowid
+        imp.counts["eval_test_cases"] += 1
+    cols = ("run_at", "trigger", "pass_fail", "judge_score", "duration_s", "tool_call_count",
+            "tokens_in", "tokens_out", "trace_path", "notes")
+    for r in src.execute("SELECT * FROM eval_runs ORDER BY id"):
+        tc = cmap[r["test_case_id"]]
+        if imp.dst.execute("SELECT 1 FROM eval_runs WHERE test_case_id = ? AND run_at = ?", (tc, r["run_at"])).fetchone():
+            imp.counts["eval_runs (already imported)"] += 1
+            continue
+        imp.dst.execute(f"INSERT INTO eval_runs (test_case_id, {', '.join(cols)}) VALUES (?{', ?' * len(cols)})",
+                        (tc, *(r[c] for c in cols)))
+        imp.counts["eval_runs"] += 1
 
 
 def import_cmc(src: sqlite3.Connection, imp: Importer) -> None:

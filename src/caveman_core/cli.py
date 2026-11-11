@@ -7,6 +7,7 @@
     cavecore doctor                      check machine + workspace setup
     cavecore backup                      snapshot data/*.db and config/
     cavecore usage                       token usage across transcripts
+    cavecore eval ...                    subagent eval harness
     cavecore run <plugin> <script> ...   run a plugin script, whatever version is installed
     cavecore headless --prompt-file F    one unattended Claude run (Task Scheduler)
     cavecore hook session-start          SessionStart context (used by the plugin)
@@ -18,7 +19,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import __version__, backup, doctor, guard, headless, hook, ledger, legacy, paths, runner, usage, work, workspace
+from . import __version__, backup, doctor, evals, guard, headless, hook, ledger, legacy, paths, runner, usage, work, workspace
 
 
 def _ws(a) -> paths.Workspace:
@@ -165,6 +166,10 @@ def cmd_guard(a) -> int:
     return guard.pre_push(repo, sys.stdin.read())
 
 
+def cmd_eval(a) -> int:
+    return evals.main(_ws(a), a.eval_args)
+
+
 def cmd_hook(a) -> int:
     if a.hook_cmd == "session-start":
         try:
@@ -258,6 +263,11 @@ def build_parser() -> argparse.ArgumentParser:
     x.add_argument("url", nargs="?")
     x.set_defaults(run=cmd_guard)
 
+    x = sub.add_parser("eval", help="Subagent eval harness (cases, headless runs, grading, trends)",
+                       add_help=False)
+    x.add_argument("eval_args", nargs=argparse.REMAINDER, help="see `cavecore eval --help`")
+    x.set_defaults(run=cmd_eval)
+
     x = sub.add_parser("hook", help="Hook entry points").add_subparsers(dest="hook_cmd", required=True)
     x.add_parser("session-start").set_defaults(run=cmd_hook)
     return p
@@ -269,7 +279,28 @@ def main(argv: list[str] | None = None) -> int:
             stream.reconfigure(encoding="utf-8")
         except (AttributeError, ValueError):
             pass
+    argv = list(sys.argv[1:] if argv is None else argv)
+    eval_rest = None
+    # `cavecore [--workspace W] eval <anything>`: hand everything after `eval` to the
+    # harness's own parser untouched (argparse REMAINDER drops a leading --help).
+    i, takes_value = 0, False
+    while i < len(argv):
+        tok = argv[i]
+        if takes_value:
+            takes_value = False
+        elif tok == "--workspace":
+            takes_value = True
+        elif tok.startswith("--workspace="):
+            pass
+        elif tok == "eval":
+            argv, eval_rest = argv[: i + 1], argv[i + 1:]
+            break
+        else:
+            break
+        i += 1
     a = build_parser().parse_args(argv)
+    if eval_rest is not None:
+        a.eval_args = eval_rest
     try:
         if a.cmd == "work":
             return work.run(_ws(a), a)
