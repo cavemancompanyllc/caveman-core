@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "caveman-core"
+dynamic = ["version"]
+description = "Shared runtime for Caveman plugins: workspace paths, .env loading, the session ledger, local-LLM calls, doctor, backup and usage."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "Caveman Company LLC", email = "admin@cavemancompany.co" }]
+dependencies = ["pyyaml>=6.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+cavecore = "caveman_core.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/cavemancompanyllc/caveman-core"
+
+[tool.hatch.version]
+path = "src/caveman_core/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/caveman_core"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

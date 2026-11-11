@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "caveman-core",
+  "description": "The base plugin every Caveman plugin builds on: workspaces, the session ledger, one handoff, session rules, doctor and backup.",
+  "owner": {
+    "name": "Caveman Company LLC",
+    "email": "admin@cavemancompany.co"
+  },
+  "plugins": [
+    {
+      "name": "caveman-core",
+      "source": "./plugins/caveman-core",
+      "description": "Workspace model, per-workspace ledger, unified session handoff, SessionStart plugin rules, doctor, backup, research agent and untrusted-content policy.",
+      "category": "productivity"
+    }
+  ]
+}
