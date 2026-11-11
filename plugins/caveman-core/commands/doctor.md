@@ -2,6 +2,8 @@
 description: Check that this machine and workspace are set up correctly for Caveman plugins.
 ---
 
+> If `cavecore` isn't found, use `python -m caveman_core` with the same arguments (the package is installed but its Scripts folder isn't on PATH).
+
 Run:
 
 ```bash

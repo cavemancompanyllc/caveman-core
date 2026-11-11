@@ -2,6 +2,8 @@
 description: Write a retro for this session (what went well, what went wrong, script candidates).
 ---
 
+> If `cavecore` isn't found, use `python -m caveman_core` with the same arguments (the package is installed but its Scripts folder isn't on PATH).
+
 Review this session itself, not just its output, and be specific:
 
 - **Went well:** approaches, delegations or command sequences worth repeating.

@@ -1,3 +1,4 @@
+- `cavecore` is the caveman-core CLI. If the shell can't find it, run `python -m caveman_core` with the same arguments.
 - Session history lives in this workspace's ledger. Resume an effort with `cavecore work effort show <slug>`; list active work with `cavecore work status`.
 - When a concrete to-do surfaces that won't be done now, record it: `cavecore work task add <effort-slug> "<description>"`.
 - End substantial sessions with `/caveman-core:handoff`. Read the living handoff file before changing it; other sessions may share it.

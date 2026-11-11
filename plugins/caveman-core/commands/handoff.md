@@ -3,6 +3,8 @@ description: End a session - record it in the ledger, update the living handoff 
 argument-hint: "[--no-git] [--no-push] [--no-retro] [effort-slug]"
 ---
 
+> If `cavecore` isn't found, use `python -m caveman_core` with the same arguments (the package is installed but its Scripts folder isn't on PATH).
+
 Perform a session handoff for this workspace. Arguments: $ARGUMENTS
 
 Write everything below for a reader with zero memory of this conversation.

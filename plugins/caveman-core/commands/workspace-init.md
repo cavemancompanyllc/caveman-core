@@ -3,6 +3,8 @@ description: Set up this folder as a Caveman workspace (workspace.yaml, .gitigno
 argument-hint: "[name] [personal|business|kids|dev|sandbox]"
 ---
 
+> If `cavecore` isn't found, use `python -m caveman_core` with the same arguments (the package is installed but its Scripts folder isn't on PATH).
+
 Set up the current folder as a workspace. Arguments: $ARGUMENTS
 
 1. Work out the name and kind from the arguments. If either is missing, ask the user. Kinds:

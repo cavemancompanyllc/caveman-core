@@ -3,6 +3,8 @@ name: ledger
 description: Track work across Claude Code sessions in this workspace's ledger (Project > Effort > Session/Task, plus decisions). Use when the user wants to start, resume or wrap up work on a named effort ("let's pick up the garden project", "what's the status of X", "add that as a task"), create a project or effort, log a decision, or see what's open. This replaces markdown handoff notes as the source of truth for continuity.
 ---
 
+> If `cavecore` isn't found, use `python -m caveman_core` with the same arguments (the package is installed but its Scripts folder isn't on PATH).
+
 # Ledger
 
 Every workspace has a SQLite ledger at `data/ledger.db`. All access goes through the `cavecore`

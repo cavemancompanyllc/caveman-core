@@ -20,18 +20,19 @@ Python package**.
 
 ## Install
 
-1. **The package** (Python 3.11+). Install it into a dedicated venv and put that
-   venv's `Scripts` (Windows) or `bin` folder first on your `PATH`, so plugin hooks
-   and scripts find it:
+1. **The package** (Python 3.11+). Install it into the same Python that runs your
+   plugins' scripts — the `python` on your `PATH` — so hooks and plugin scripts can
+   import it alongside their other dependencies:
 
    ```bash
-   python -m venv ~/venvs/caveman-core
-   ~/venvs/caveman-core/bin/pip install "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.0.0"
-   cavecore --version
+   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.0.1"
+   python -m caveman_core --version
    ```
 
    Install a tagged release, not an editable checkout: a workspace should never
-   run code you haven't released.
+   run code you haven't released. For the short `cavecore` command, put pip's
+   user `Scripts` (Windows) or `bin` folder on your `PATH`; until then
+   `python -m caveman_core` works everywhere `cavecore` does.
 
 2. **The plugin**, from inside a workspace:
 
