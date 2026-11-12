@@ -10,7 +10,8 @@
     cavecore eval ...                    subagent eval harness
     cavecore run <plugin> <script> ...   run a plugin script, whatever version is installed
     cavecore headless --prompt-file F    one unattended Claude run (Task Scheduler)
-    cavecore hook session-start          SessionStart context (used by the plugin)
+    cavecore tokens                      live per-session token counters and context limits
+    cavecore hook session-start|prompt|stop   hook entry points (used by the plugin)
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import __version__, backup, doctor, evals, guard, headless, hook, ledger, legacy, paths, runner, usage, work, workspace
+from . import __version__, backup, doctor, evals, guard, headless, hook, ledger, legacy, paths, runner, tokens, usage, work, workspace
 
 
 def _ws(a) -> paths.Workspace:
@@ -176,6 +177,23 @@ def cmd_hook(a) -> int:
             print(hook.session_start_text())
         except Exception as e:  # noqa: BLE001 - never fail a session start
             print(f"caveman-core: session-start hook error: {e}")
+    elif a.hook_cmd == "prompt":
+        out = tokens.hook_prompt(_stdin())
+        if out:
+            print(out)
+    elif a.hook_cmd == "stop":
+        tokens.hook_stop(_stdin())
+    return 0
+
+
+def _stdin() -> str:
+    """Hook JSON is UTF-8 whatever the console code page says."""
+    buf = getattr(sys.stdin, "buffer", None)
+    return buf.read().decode("utf-8", "replace") if buf else sys.stdin.read()
+
+
+def cmd_tokens(a) -> int:
+    print(tokens.report(_ws(a), a.session, a.limit))
     return 0
 
 
@@ -270,6 +288,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     x = sub.add_parser("hook", help="Hook entry points").add_subparsers(dest="hook_cmd", required=True)
     x.add_parser("session-start").set_defaults(run=cmd_hook)
+    x.add_parser("prompt", help="UserPromptSubmit: context-size warning (hook JSON on stdin)").set_defaults(run=cmd_hook)
+    x.add_parser("stop", help="Stop: update this session's token counters (hook JSON on stdin)").set_defaults(run=cmd_hook)
+
+    x = sub.add_parser("tokens", help="Live per-session token counters and this workspace's context limits")
+    x.add_argument("--session", help="session id (a prefix is enough)")
+    x.add_argument("--limit", type=int, default=10)
+    x.set_defaults(run=cmd_tokens)
     return p
 
 

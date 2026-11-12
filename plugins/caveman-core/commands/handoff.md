@@ -9,6 +9,9 @@ Perform a session handoff for this workspace. Arguments: $ARGUMENTS
 
 Write everything below for a reader with zero memory of this conversation.
 
+Also run this when caveman-core's context warning fires: at the **soft** limit, finish the current
+thread first; at the **hard** limit, hand off now. The handoff itself needs room in the window.
+
 1. **Find the workspace.** Run `cavecore which`. If it fails, stop and tell the user to run
    `/caveman-core:workspace-init`. Note the handoff file, retro path and task mode it prints.
 
@@ -35,7 +38,8 @@ Write everything below for a reader with zero memory of this conversation.
 
    `--transcript auto` records this session's token counts. If the workspace tracks tasks in the
    ledger (`tasks: ledger`), also close finished tasks (`cavecore work task done <id>`) and add new
-   ones that surfaced. If it tracks tasks in ADO (`tasks: ado`), update work-item states there
+   ones that surfaced. Run `cavecore work task list --stale` and list any tasks open for 30+ days in
+   your report, so the user can close, cancel or recommit them; don't close them yourself. If it tracks tasks in ADO (`tasks: ado`), update work-item states there
    instead and put the IDs in `--git-refs` or the summary.
 
 5. **Update the living handoff file** (path from step 1, default `local/handoff.md`). **Read it
@@ -58,5 +62,6 @@ Write everything below for a reader with zero memory of this conversation.
    conventions (for example a work-item ID, if the workspace's rules ask for one). Push only if the
    repo has a remote and pushing is routine for it; skip with `--no-push`. Never force-push.
 
-8. **Report back** in a few lines: the effort, what was logged, the token count, what was
-   committed and pushed, and the top next step.
+8. **Report back** in a few lines: the effort, what was logged, the token count and peak context
+   (`cavecore tokens --limit 1`), what was committed and pushed, stale tasks if any, and the top
+   next step.

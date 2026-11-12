@@ -92,6 +92,34 @@ CREATE TABLE IF NOT EXISTS decisions (
 );
 CREATE INDEX IF NOT EXISTS IX_decisions_project_id ON decisions(project_id);
 
+-- Live token counters per Claude Code session, kept by the plugin's Stop hook
+-- (see caveman_core/tokens.py). session_id is Claude Code's own id (the
+-- transcript file name), not sessions.id: a row exists from the first reply,
+-- long before the handoff writes a sessions row.
+--   context_tokens = size of the last request (fresh input + cache read + cache write)
+--   input_tokens   = cumulative, same definition summed over every request
+--   warned_band    = highest context warning already shown (0 none, 1 soft, 2 hard)
+--   scan_offset    = bytes of the transcript already counted
+CREATE TABLE IF NOT EXISTS session_tokens (
+    session_id TEXT PRIMARY KEY,
+    transcript TEXT,
+    model TEXT,
+    started_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    turns INTEGER NOT NULL DEFAULT 0,
+    tool_calls INTEGER NOT NULL DEFAULT 0,
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+    context_tokens INTEGER NOT NULL DEFAULT 0,
+    peak_context_tokens INTEGER NOT NULL DEFAULT 0,
+    warned_band INTEGER NOT NULL DEFAULT 0,
+    scan_offset INTEGER NOT NULL DEFAULT 0,
+    last_message_id TEXT
+);
+CREATE INDEX IF NOT EXISTS IX_session_tokens_updated_at ON session_tokens(updated_at);
+
 -- updated_at is maintained by triggers so no UPDATE can forget it.
 CREATE TRIGGER IF NOT EXISTS trg_projects_updated_at
 AFTER UPDATE OF slug, name, description, status ON projects

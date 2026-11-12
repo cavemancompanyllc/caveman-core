@@ -24,6 +24,7 @@ NOW = "strftime('%Y-%m-%dT%H:%M:%SZ','now')"
 GENERIC = "general"
 PROJECT_STATUSES = ("planned", "active", "paused", "done", "archived")
 EFFORT_STATUSES = ("planned", "active", "blocked", "paused", "done", "abandoned")
+STALE_DAYS = 30
 
 
 class WorkError(RuntimeError):
@@ -311,14 +312,18 @@ def task_list(con, a):
     if a.status:
         sql += " AND t.status = ?"
         params.append(a.status)
-    elif not a.all:
+    elif not a.all or a.stale is not None:
         sql += " AND t.status = 'open'"
-    rows = con.execute(sql + " ORDER BY t.created_at DESC", params).fetchall()
+    if a.stale is not None:
+        sql += " AND t.created_at <= strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)"
+        params.append(f"-{a.stale} days")
+    rows = con.execute(sql + " ORDER BY t.created_at " + ("ASC" if a.stale is not None else "DESC"), params).fetchall()
     if not rows:
-        print("(no tasks)")
+        print("(no stale tasks)" if a.stale is not None else "(no tasks)")
     for t in rows:
         ref = f" [{t['external_ref']}]" if t["external_ref"] else ""
-        print(f"#{t['id']:<4} [{t['status']:9}] ({t['effort_slug']}) {t['description']}{ref}")
+        age = f" (open since {t['created_at'][:10]})" if a.stale is not None else ""
+        print(f"#{t['id']:<4} [{t['status']:9}] ({t['effort_slug']}) {t['description']}{ref}{age}")
 
 
 def _task_close(con, a, status):
@@ -353,13 +358,20 @@ def task_show(con, a):
 def status(con, a):
     print("## Active efforts\n")
     rows = con.execute("SELECT e.*, p.name AS project_name, "
-                       "EXISTS(SELECT 1 FROM sessions s WHERE s.effort_id = e.id AND s.status = 'in_progress') AS open_s "
+                       "EXISTS(SELECT 1 FROM sessions s WHERE s.effort_id = e.id AND s.status = 'in_progress') AS open_s, "
+                       "(SELECT COUNT(*) FROM tasks t WHERE t.effort_id = e.id AND t.status = 'open') AS open_t "
                        "FROM efforts e JOIN projects p ON p.id = e.project_id "
                        "WHERE e.status IN ('active','blocked') ORDER BY e.updated_at DESC").fetchall()
     if not rows:
         print("(none)")
     for e in rows:
-        print(f"[{e['status']:8}] {e['project_name']} / {e['name']} ({e['slug']}){' [session open]' if e['open_s'] else ''}")
+        tasks = f" - {e['open_t']} open task(s)" if e["open_t"] else ""
+        print(f"[{e['status']:8}] {e['project_name']} / {e['name']} ({e['slug']}){tasks}"
+              f"{' [session open]' if e['open_s'] else ''}")
+    stale = con.execute("SELECT COUNT(*) FROM tasks WHERE status = 'open' AND "
+                        "created_at <= strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)", (f"-{STALE_DAYS} days",)).fetchone()[0]
+    if stale:
+        print(f"\n{stale} task(s) open for {STALE_DAYS}+ days: `cavecore work task list --stale` - close, cancel or recommit them.")
 
 
 def add_parser(sub) -> None:
@@ -395,7 +407,10 @@ def add_parser(sub) -> None:
     x.add_argument("--external-ref", help="e.g. ado:850 or gh:owner/repo#12"); x.add_argument("--session-id", type=int)
     x.set_defaults(func=task_add)
     x = tk.add_parser("list"); x.add_argument("--effort"); x.add_argument("--status", choices=("open", "done", "cancelled"))
-    x.add_argument("--all", action="store_true"); x.set_defaults(func=task_list)
+    x.add_argument("--all", action="store_true")
+    x.add_argument("--stale", type=int, nargs="?", const=STALE_DAYS, metavar="DAYS",
+                   help=f"only open tasks created at least DAYS ago (default {STALE_DAYS})")
+    x.set_defaults(func=task_list)
     for name, fn in (("done", task_done), ("cancel", task_cancel)):
         x = tk.add_parser(name); x.add_argument("id", type=int); x.add_argument("--session-id", type=int); x.set_defaults(func=fn)
     x = tk.add_parser("show"); x.add_argument("id", type=int); x.set_defaults(func=task_show)

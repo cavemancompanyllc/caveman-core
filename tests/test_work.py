@@ -76,3 +76,23 @@ def test_write_rolls_back(ws):
     except RuntimeError:
         pass
     assert con.execute("SELECT COUNT(*) FROM projects").fetchone()[0] == 0
+
+
+def test_status_open_counts_and_stale_tasks(run, ws):
+    from caveman_core import ledger, paths
+    run("work", "project", "add", "home", "Home")
+    run("work", "effort", "add", "home", "garden", "Garden")
+    run("work", "effort", "update", "garden", "--status", "active")
+    run("work", "task", "add", "garden", "old task")
+    run("work", "task", "add", "garden", "new task")
+    con = ledger.connect(paths.resolve(ws))
+    con.execute("UPDATE tasks SET created_at = '2020-01-01T00:00:00Z' WHERE description = 'old task'")
+    con.close()
+
+    code, out, _ = run("work", "status")
+    assert code == 0 and "2 open task(s)" in out and "1 task(s) open for 30+ days" in out
+
+    code, out, _ = run("work", "task", "list", "--stale")
+    assert "old task" in out and "new task" not in out and "open since 2020-01-01" in out
+    code, out, _ = run("work", "task", "list", "--stale", "100000")
+    assert "(no stale tasks)" in out

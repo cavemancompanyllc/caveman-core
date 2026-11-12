@@ -10,6 +10,9 @@ Every Caveman plugin declares `caveman-core` as a dependency and gets, for free:
 - **One session handoff** — `/caveman-core:handoff` records what happened, what's
   next and how many tokens it took, updates a living handoff note, optionally
   appends a retro, and commits.
+- **Token tracking** — hooks keep live per-session token counts in the ledger and
+  warn when a session's context passes the workspace's limits, so you hand off
+  before quality slips.
 - **Session rules** — plugins can't ship a `CLAUDE.md`, so each one puts its
   always-on rules in `rules/session.md`, and core loads them at session start.
 - **Shared code** — `.env` loading, local-LLM (Ollama) calls, `doctor`, `backup`
@@ -25,7 +28,7 @@ Python package**.
    import it alongside their other dependencies:
 
    ```bash
-   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.6.0"
+   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.7.0"
    python -m caveman_core --version
    ```
 
@@ -75,6 +78,9 @@ kind: personal        # personal | business | kids | dev | sandbox
 tasks: ledger         # ledger | ado | none - where tasks are tracked
 retro:
   path: docs/lessons-learned.md   # optional: handoff appends retros here
+tokens:                           # optional: context-size warning limits (0 = off)
+  soft: 300000                    # finish the current thread, then hand off
+  hard: 380000                    # hand off now
 plugins:                          # optional: non-secret, workspace-specific plugin settings
   concierge-memory-obsidian:
     vault_path: D:/vaults/home
@@ -103,7 +109,9 @@ cavecore run [--log F] <plugin> <script> [args]   run a plugin's script, whateve
 cavecore headless --prompt-file <f>    one unattended Claude run (Task Scheduler / cron); prompt path may be
                                        workspace-relative; tools from <f>.allowedtools or default.allowedtools
 cavecore guard install                 pre-push hook: deny-list + gitleaks before public pushes
-cavecore work status                   active efforts
+cavecore work status                   active efforts, open task counts, stale-task nudge
+cavecore work task list --stale [DAYS]  open tasks created 30+ (or DAYS) days ago
+cavecore tokens                        live per-session token counts and context limits
 cavecore work project|effort|task|decision ...
 cavecore work session start|end|log|list ...
 cavecore ledger init|info|sql|import-legacy
@@ -117,6 +125,24 @@ cavecore eval case|run|which-agents    subagent eval harness: cases, headless ru
 Workspace resolution order: `--workspace`, `CAVEMAN_HOME`, `CONCIERGE_HOME`
 (legacy), then a walk up from `CLAUDE_PROJECT_DIR` or the current directory to
 the nearest `workspace.yaml`.
+
+## Token tracking
+
+Two hooks in the plugin keep an eye on the session:
+
+- **After every reply** (`Stop`), the session's row in the ledger's `session_tokens`
+  table is updated: turns, tool calls, cumulative tokens, current context size and
+  the peak. Only the new part of the transcript is read each time.
+- **Before every prompt** (`UserPromptSubmit`), the current context size is checked
+  against the workspace's `tokens:` limits. Past the soft limit Claude is told to
+  finish the current thread and run `/caveman-core:handoff`; past the hard limit,
+  to hand off now. Each limit warns once per session, and again if a compacted
+  session grows back past it.
+
+"Context" is the size of the last request (fresh input plus cache reads and
+writes): every turn re-reads the whole window, so it is what a long session
+really costs. The defaults suit a 1M-token window; lower them for a smaller one,
+or set either limit to `0` to turn it off. `cavecore tokens` shows recent sessions.
 
 ## Writing a plugin on top of core
 
