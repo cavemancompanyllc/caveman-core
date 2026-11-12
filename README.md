@@ -23,12 +23,22 @@ Python package**.
 
 ## Install
 
+**The easy way.** Open Claude Code (desktop app or terminal) in any folder and say:
+
+> Install the caveman-core plugin from the cavemancompanyllc/caveman-core marketplace, then run /caveman-core:setup.
+
+The setup skill does the rest with you: it checks your computer, installs the
+package, makes a workspace, helps you pick plugins, installs what they need
+and answers your questions. Ask it anything later with `/caveman-core:setup <question>`.
+
+**By hand:**
+
 1. **The package** (Python 3.11+). Install it into the same Python that runs your
    plugins' scripts — the `python` on your `PATH` — so hooks and plugin scripts can
    import it alongside their other dependencies:
 
    ```bash
-   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.7.0"
+   python -m pip install --user "caveman-core @ git+https://github.com/cavemancompanyllc/caveman-core@v1.7.1"
    python -m caveman_core --version
    ```
 
